@@ -1,0 +1,365 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Aspirant preferences, target APPSC/AP Police exam, enrolled courses, and bookmarked study blogs.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase Auth UID matching the document ID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Aspirant display name (1-80 characters)."
+        },
+        "preferredLanguage": {
+          "type": "string",
+          "enum": ["EN", "TE"],
+          "description": "Preferred bilingual UI language (English or Telugu)."
+        },
+        "targetExam": {
+          "type": "string",
+          "enum": [
+            "APPSC_GROUP1",
+            "APPSC_GROUP2",
+            "APPSC_GROUP3_4",
+            "AP_POLICE_SI",
+            "AP_POLICE_CONSTABLE"
+          ],
+          "description": "Primary target examination."
+        },
+        "enrolledCourseIds": {
+          "type": "array",
+          "description": "Bounded list (max 20) of enrolled coaching course IDs."
+        },
+        "bookmarkedBlogIds": {
+          "type": "array",
+          "description": "Bounded list (max 50) of bookmarked study blog IDs."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp() on creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp() on creation and updates."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "preferredLanguage",
+        "targetExam",
+        "enrolledCourseIds",
+        "bookmarkedBlogIds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ExamAttempt": {
+      "title": "ExamAttempt",
+      "description": "Immutable record of a completed CBT mock exam attempt with negative marking score breakdown.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "testId": {
+          "type": "string",
+          "description": "Identifier of the mock test taken."
+        },
+        "testTitleEn": {
+          "type": "string",
+          "description": "English title of the mock test."
+        },
+        "testTitleTe": {
+          "type": "string",
+          "description": "Telugu title of the mock test."
+        },
+        "examCategory": {
+          "type": "string",
+          "enum": [
+            "APPSC_GROUP1",
+            "APPSC_GROUP2",
+            "APPSC_GROUP3_4",
+            "AP_POLICE_SI",
+            "AP_POLICE_CONSTABLE"
+          ]
+        },
+        "totalQuestions": {
+          "type": "integer",
+          "description": "Total number of questions in the exam."
+        },
+        "correctCount": {
+          "type": "integer",
+          "description": "Count of correctly answered questions."
+        },
+        "wrongCount": {
+          "type": "integer",
+          "description": "Count of incorrectly answered questions."
+        },
+        "unansweredCount": {
+          "type": "integer",
+          "description": "Count of skipped questions."
+        },
+        "score": {
+          "type": "number",
+          "description": "Final net score after applying negative marking."
+        },
+        "maxScore": {
+          "type": "number",
+          "description": "Maximum achievable score."
+        },
+        "negativeMarking": {
+          "type": "number",
+          "description": "Negative marks deducted per wrong answer."
+        },
+        "timeTakenSeconds": {
+          "type": "integer",
+          "description": "Elapsed exam time in seconds."
+        },
+        "accuracyPercent": {
+          "type": "number",
+          "description": "Percentage accuracy across attempted questions."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "testId",
+        "testTitleEn",
+        "testTitleTe",
+        "examCategory",
+        "totalQuestions",
+        "correctCount",
+        "wrongCount",
+        "unansweredCount",
+        "score",
+        "maxScore",
+        "negativeMarking",
+        "timeTakenSeconds",
+        "accuracyPercent",
+        "createdAt"
+      ]
+    },
+    "MockTest": {
+      "title": "MockTest",
+      "description": "Bilingual English & Telugu CBT mock test uploaded via Admin Dashboard.",
+      "type": "object",
+      "properties": {
+        "authorId": {
+          "type": "string",
+          "description": "Creator Firebase Auth UID."
+        },
+        "titleEn": {
+          "type": "string",
+          "description": "Mock test title in English."
+        },
+        "titleTe": {
+          "type": "string",
+          "description": "Mock test title in Telugu."
+        },
+        "descriptionEn": {
+          "type": "string",
+          "description": "Mock test summary in English."
+        },
+        "descriptionTe": {
+          "type": "string",
+          "description": "Mock test summary in Telugu."
+        },
+        "examCategory": {
+          "type": "string",
+          "enum": [
+            "APPSC_GROUP1",
+            "APPSC_GROUP2",
+            "APPSC_GROUP3_4",
+            "AP_POLICE_SI",
+            "AP_POLICE_CONSTABLE"
+          ]
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "description": "Countdown timer duration in minutes (1-240)."
+        },
+        "marksPerQuestion": {
+          "type": "number",
+          "description": "Positive marks awarded per correct answer."
+        },
+        "negativeMarking": {
+          "type": "number",
+          "description": "Negative marks deducted per wrong answer (e.g., 0.33 or 0.25)."
+        },
+        "scoringRules": {
+          "type": "object",
+          "description": "Structured scoring configuration: marksPerCorrect, negativeMarkPerWrong, unansweredPenalty, negativeMarkingEnabled, passingPercentage."
+        },
+        "freeDemo": {
+          "type": "boolean",
+          "description": "Whether this test is featured as a free demo mock test."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["published", "draft"]
+        },
+        "questions": {
+          "type": "array",
+          "description": "Bounded list (1-50) of bilingual CBT question maps with explanations."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "authorId",
+        "titleEn",
+        "titleTe",
+        "descriptionEn",
+        "descriptionTe",
+        "examCategory",
+        "durationMinutes",
+        "marksPerQuestion",
+        "negativeMarking",
+        "freeDemo",
+        "status",
+        "questions",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StudyBlog": {
+      "title": "StudyBlog",
+      "description": "SEO-optimized bilingual study blog published via Admin Dashboard.",
+      "type": "object",
+      "properties": {
+        "authorId": {
+          "type": "string",
+          "description": "Author Firebase Auth UID."
+        },
+        "titleEn": {
+          "type": "string",
+          "description": "SEO headline in English."
+        },
+        "titleTe": {
+          "type": "string",
+          "description": "SEO headline in Telugu."
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-friendly SEO slug (lowercase letters, digits, hyphens)."
+        },
+        "metaDescription": {
+          "type": "string",
+          "description": "Search-engine meta description (max 220 chars)."
+        },
+        "seoKeywords": {
+          "type": "array",
+          "description": "Bounded list (max 10) of SEO keyword tags."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["APPSC", "AP_POLICE", "CURRENT_AFFAIRS", "STRATEGY"]
+        },
+        "summaryEn": {
+          "type": "string",
+          "description": "Short excerpt in English."
+        },
+        "summaryTe": {
+          "type": "string",
+          "description": "Short excerpt in Telugu."
+        },
+        "contentEn": {
+          "type": "string",
+          "description": "Full study article body in English."
+        },
+        "contentTe": {
+          "type": "string",
+          "description": "Full study article body in Telugu."
+        },
+        "readTimeMinutes": {
+          "type": "integer",
+          "description": "Estimated reading time in minutes."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["published", "draft"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "authorId",
+        "titleEn",
+        "titleTe",
+        "slug",
+        "metaDescription",
+        "seoKeywords",
+        "category",
+        "summaryEn",
+        "summaryTe",
+        "contentEn",
+        "contentTe",
+        "readTimeMinutes",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Server-managed registry of admin UIDs.",
+      "type": "object",
+      "properties": {
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["grantedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Per-user coaching preferences, enrollments, and bookmarked study blogs."
+    },
+    "/users/{userId}/attempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/ExamAttempt" },
+      "description": "Per-user CBT mock exam attempt history and scorecards."
+    },
+    "/mock_tests/{testId}": {
+      "schema": { "$ref": "#/entities/MockTest" },
+      "description": "Published bilingual CBT mock tests uploaded from the Admin Dashboard."
+    },
+    "/study_blogs/{blogId}": {
+      "schema": { "$ref": "#/entities/StudyBlog" },
+      "description": "Published SEO-friendly bilingual study blogs and exam guides."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted admin role registry (read-only for self, never client-writable)."
+    }
+  }
+}

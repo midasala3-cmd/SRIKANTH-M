@@ -1,0 +1,6 @@
+{
+  "name": "Vijeta AP",
+  "description": "Bilingual (English & Telugu) APPSC and AP Police SI/Constable coaching app featuring courses, CBT exam portal with negative marking and step-by-step solutions, SEO study blogs, and an Admin Dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

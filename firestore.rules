@@ -1,0 +1,231 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email' in request.auth.token &&
+         request.auth.token.email == 'midasala3@gmail.com' &&
+         request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidExamCategory(cat) {
+      return cat in ['APPSC_GROUP1', 'APPSC_GROUP2', 'APPSC_GROUP3_4', 'AP_POLICE_SI', 'AP_POLICE_CONSTABLE'];
+    }
+
+    function isValidBlogCategory(cat) {
+      return cat in ['APPSC', 'AP_POLICE', 'CURRENT_AFFAIRS', 'STRATEGY'];
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.preferredLanguage in ['EN', 'TE'] &&
+             isValidExamCategory(data.targetExam) &&
+             data.enrolledCourseIds is list && data.enrolledCourseIds.size() <= 20 &&
+             (data.enrolledCourseIds.size() == 0 || data.enrolledCourseIds[0] is string) &&
+             data.bookmarkedBlogIds is list && data.bookmarkedBlogIds.size() <= 50 &&
+             (data.bookmarkedBlogIds.size() == 0 || data.bookmarkedBlogIds[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidExamAttempt(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.testId is string && data.testId.size() >= 1 && data.testId.size() <= 128 &&
+             data.testTitleEn is string && data.testTitleEn.size() >= 1 && data.testTitleEn.size() <= 140 &&
+             data.testTitleTe is string && data.testTitleTe.size() >= 1 && data.testTitleTe.size() <= 200 &&
+             isValidExamCategory(data.examCategory) &&
+             data.totalQuestions is int && data.totalQuestions >= 1 && data.totalQuestions <= 200 &&
+             data.correctCount is int && data.correctCount >= 0 && data.correctCount <= data.totalQuestions &&
+             data.wrongCount is int && data.wrongCount >= 0 && data.wrongCount <= data.totalQuestions &&
+             data.unansweredCount is int && data.unansweredCount >= 0 && data.unansweredCount <= data.totalQuestions &&
+             (data.correctCount + data.wrongCount + data.unansweredCount) == data.totalQuestions &&
+             data.score is number && data.score >= -200.0 && data.score <= 1000.0 &&
+             data.maxScore is number && data.maxScore >= 1.0 && data.maxScore <= 1000.0 &&
+             data.negativeMarking is number && data.negativeMarking >= 0.0 && data.negativeMarking <= 5.0 &&
+             data.timeTakenSeconds is int && data.timeTakenSeconds >= 0 && data.timeTakenSeconds <= 36000 &&
+             data.accuracyPercent is number && data.accuracyPercent >= 0.0 && data.accuracyPercent <= 100.0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidScoringRules(rules) {
+      return rules is map &&
+             rules.keys().hasAll(['marksPerCorrect', 'negativeMarkPerWrong', 'unansweredPenalty', 'negativeMarkingEnabled', 'passingPercentage']) &&
+             rules.keys().hasOnly(['marksPerCorrect', 'negativeMarkPerWrong', 'unansweredPenalty', 'negativeMarkingEnabled', 'passingPercentage']) &&
+             rules.marksPerCorrect is number && rules.marksPerCorrect >= 0.5 && rules.marksPerCorrect <= 10.0 &&
+             rules.negativeMarkPerWrong is number && rules.negativeMarkPerWrong >= 0.0 && rules.negativeMarkPerWrong <= 5.0 &&
+             rules.unansweredPenalty is number && rules.unansweredPenalty >= 0.0 && rules.unansweredPenalty <= 2.0 &&
+             rules.negativeMarkingEnabled is bool &&
+             rules.passingPercentage is number && rules.passingPercentage >= 0.0 && rules.passingPercentage <= 100.0;
+    }
+
+    function isValidMockTest(data) {
+      return data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+             data.titleEn is string && data.titleEn.size() >= 3 && data.titleEn.size() <= 140 &&
+             data.titleTe is string && data.titleTe.size() >= 1 && data.titleTe.size() <= 200 &&
+             data.descriptionEn is string && data.descriptionEn.size() <= 500 &&
+             data.descriptionTe is string && data.descriptionTe.size() <= 600 &&
+             isValidExamCategory(data.examCategory) &&
+             data.durationMinutes is int && data.durationMinutes >= 1 && data.durationMinutes <= 240 &&
+             data.marksPerQuestion is number && data.marksPerQuestion >= 0.5 && data.marksPerQuestion <= 10.0 &&
+             data.negativeMarking is number && data.negativeMarking >= 0.0 && data.negativeMarking <= 5.0 &&
+             (!('scoringRules' in data) || isValidScoringRules(data.scoringRules)) &&
+             data.freeDemo is bool &&
+             data.status in ['published', 'draft'] &&
+             data.questions is list && data.questions.size() >= 1 && data.questions.size() <= 50 &&
+             data.questions[0] is map &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidStudyBlog(data) {
+      return data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+             data.titleEn is string && data.titleEn.size() >= 5 && data.titleEn.size() <= 160 &&
+             data.titleTe is string && data.titleTe.size() >= 2 && data.titleTe.size() <= 220 &&
+             data.slug is string && data.slug.size() >= 3 && data.slug.size() <= 120 && data.slug.matches('^[a-z0-9\\-]+$') &&
+             data.metaDescription is string && data.metaDescription.size() >= 10 && data.metaDescription.size() <= 220 &&
+             data.seoKeywords is list && data.seoKeywords.size() <= 10 &&
+             (data.seoKeywords.size() == 0 || data.seoKeywords[0] is string) &&
+             isValidBlogCategory(data.category) &&
+             data.summaryEn is string && data.summaryEn.size() >= 10 && data.summaryEn.size() <= 400 &&
+             data.summaryTe is string && data.summaryTe.size() >= 5 && data.summaryTe.size() <= 500 &&
+             data.contentEn is string && data.contentEn.size() >= 20 && data.contentEn.size() <= 15000 &&
+             data.contentTe is string && data.contentTe.size() >= 10 && data.contentTe.size() <= 15000 &&
+             data.readTimeMinutes is int && data.readTimeMinutes >= 1 && data.readTimeMinutes <= 120 &&
+             data.status in ['published', 'draft'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- COLLECTIONS ---
+
+    // 1. User Profiles & Per-User Attempts Subcollection
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'preferredLanguage', 'targetExam', 'enrolledCourseIds', 'bookmarkedBlogIds', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'preferredLanguage', 'targetExam', 'enrolledCourseIds', 'bookmarkedBlogIds', 'createdAt', 'updatedAt']) &&
+                       incoming().userId == request.auth.uid &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'preferredLanguage', 'targetExam', 'enrolledCourseIds', 'bookmarkedBlogIds', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // User-scoped CBT exam attempts subcollection
+      match /attempts/{attemptId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(attemptId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(attemptId) &&
+                         incoming().keys().hasAll(['userId', 'testId', 'testTitleEn', 'testTitleTe', 'examCategory', 'totalQuestions', 'correctCount', 'wrongCount', 'unansweredCount', 'score', 'maxScore', 'negativeMarking', 'timeTakenSeconds', 'accuracyPercent', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'testId', 'testTitleEn', 'testTitleTe', 'examCategory', 'totalQuestions', 'correctCount', 'wrongCount', 'unansweredCount', 'score', 'maxScore', 'negativeMarking', 'timeTakenSeconds', 'accuracyPercent', 'createdAt']) &&
+                         isValidExamAttempt(incoming(), userId);
+
+        // Attempts are immutable scorecards once submitted
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(attemptId);
+      }
+    }
+
+    // 2. Bilingual CBT Mock Tests (Published catalog + Author/Admin management)
+    match /mock_tests/{testId} {
+      allow get: if isSignedIn() && isValidId(testId) &&
+                    (existing().status == 'published' || existing().authorId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() &&
+                     (existing().status == 'published' || existing().authorId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(testId) &&
+                       incoming().keys().hasAll(['authorId', 'titleEn', 'titleTe', 'descriptionEn', 'descriptionTe', 'examCategory', 'durationMinutes', 'marksPerQuestion', 'negativeMarking', 'freeDemo', 'status', 'questions', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['authorId', 'titleEn', 'titleTe', 'descriptionEn', 'descriptionTe', 'examCategory', 'durationMinutes', 'marksPerQuestion', 'negativeMarking', 'scoringRules', 'freeDemo', 'status', 'questions', 'createdAt', 'updatedAt']) &&
+                       incoming().authorId == request.auth.uid &&
+                       isValidMockTest(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(testId) &&
+                       isValidMockTest(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['titleEn', 'titleTe', 'descriptionEn', 'descriptionTe', 'examCategory', 'durationMinutes', 'marksPerQuestion', 'negativeMarking', 'scoringRules', 'freeDemo', 'status', 'questions', 'updatedAt'])) ||
+                         (existing().authorId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['titleEn', 'titleTe', 'descriptionEn', 'descriptionTe', 'examCategory', 'durationMinutes', 'marksPerQuestion', 'negativeMarking', 'scoringRules', 'freeDemo', 'status', 'questions', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(testId) && (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // 3. SEO-Friendly Bilingual Study Blogs
+    match /study_blogs/{blogId} {
+      allow get: if isSignedIn() && isValidId(blogId) &&
+                    (existing().status == 'published' || existing().authorId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() &&
+                     (existing().status == 'published' || existing().authorId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(blogId) &&
+                       incoming().keys().hasAll(['authorId', 'titleEn', 'titleTe', 'slug', 'metaDescription', 'seoKeywords', 'category', 'summaryEn', 'summaryTe', 'contentEn', 'contentTe', 'readTimeMinutes', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['authorId', 'titleEn', 'titleTe', 'slug', 'metaDescription', 'seoKeywords', 'category', 'summaryEn', 'summaryTe', 'contentEn', 'contentTe', 'readTimeMinutes', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().authorId == request.auth.uid &&
+                       isValidStudyBlog(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(blogId) &&
+                       isValidStudyBlog(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['titleEn', 'titleTe', 'slug', 'metaDescription', 'seoKeywords', 'category', 'summaryEn', 'summaryTe', 'contentEn', 'contentTe', 'readTimeMinutes', 'status', 'updatedAt'])) ||
+                         (existing().authorId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['titleEn', 'titleTe', 'slug', 'metaDescription', 'seoKeywords', 'category', 'summaryEn', 'summaryTe', 'contentEn', 'contentTe', 'readTimeMinutes', 'status', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(blogId) && (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // 4. Trusted Admin Registry (Never client-writable)
+    match /admins/{adminUid} {
+      allow get: if isOwner(adminUid) && isValidId(adminUid);
+      allow list, create, update, delete: if false;
+    }
+  }
+}
